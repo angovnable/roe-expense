@@ -4,161 +4,61 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ROE Solution Expense Tracker</title>
-
-  <!-- (Optional) PWA bits -->
-  <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#28a745" />
-
-  <!-- Firebase v9 modular SDKs -->
-  <script type="module">
-    /* ---------- Import SDKs ---------- */
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-    /* ---------- Your Firebase config ---------- */
-   // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDZV79Oqv0vO8ssquSr_le1w_Za0vJT6JE",
-  authDomain: "roe-expense.firebaseapp.com",
-  projectId: "roe-expense",
-  storageBucket: "roe-expense.firebasestorage.app",
-  messagingSenderId: "1009693087819",
-  appId: "1:1009693087819:web:c4e3a256c7ead97a6e15ce",
-  measurementId: "G-6YFC12KCFJ"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-
-    /* ---------- Init ---------- */
-    const app  = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db   = getFirestore(app);
-    const provider = new GoogleAuthProvider();
-
-    /* ---------- Sign-in button ---------- */
-    document.addEventListener("DOMContentLoaded", () => {
-      const signBtn = document.getElementById("google-btn");
-      signBtn.addEventListener("click", () => signInWithPopup(auth, provider).catch(err => alert(err.message)));
-
-      /* ---------- Auth listener ---------- */
-      onAuthStateChanged(auth, async user => {
-        if (!user) return;
-        document.getElementById("auth-section").style.display = "none";
-        document.getElementById("app-section").style.display  = "block";
-        document.getElementById("user-email").textContent = user.email;
-        await loadExpenses(user.uid);
-        /* Handle form submit */
-        document.getElementById("expense-form").addEventListener("submit", e => {
-          e.preventDefault();
-          addExpense(user.uid);
-        });
-      });
-    });
-
-    /* ---------- Load expenses ---------- */
-    async function loadExpenses(uid) {
-      const list = document.getElementById("expense-list");
-      list.innerHTML = "";
-      const q   = query(collection(db, `users/${uid}/expenses`), orderBy("date", "desc"));
-      const snap = await getDocs(q);
-      let total = 0, idx = 1;
-
-      snap.forEach(d => {
-        const e = d.data();
-        total += Number(e.amount);
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${idx++}</td>
-          <td>${e.name}</td>
-          <td>KSH ${Number(e.amount).toFixed(2)}</td>
-          <td>${e.category}</td>
-          <td>${formatDate(e.date)}</td>
-          <td><button style="background:#e74c3c;color:#fff" onclick="deleteExpense('${uid}','${d.id}')">Delete</button></td>
-        `;
-        list.appendChild(row);
-      });
-      document.getElementById("total-amount").textContent = total.toFixed(2);
-    }
-
-    /* ---------- Add expense ---------- */
-    async function addExpense(uid) {
-      const name = document.getElementById("expense-name").value.trim();
-      const amount = parseFloat(document.getElementById("expense-amount").value);
-      const category = document.getElementById("expense-category").value;
-      const date = document.getElementById("expense-date").value;
-      if (!name || !amount || !category || !date) return alert("Fill all fields");
-
-      await addDoc(collection(db, `users/${uid}/expenses`), { name, amount, category, date });
-      await loadExpenses(uid);
-      document.getElementById("expense-form").reset();
-    }
-
-    /* ---------- Delete ---------- */
-    window.deleteExpense = async (uid, id) => {
-      if (!confirm("Delete this expense?")) return;
-      await deleteDoc(doc(db, `users/${uid}/expenses/${id}`));
-      await loadExpenses(uid);
-    };
-
-    /* ---------- Util ---------- */
-    function formatDate(iso) {
-      return new Date(iso).toLocaleDateString("en-GB"); // DD/MM/YYYY
-    }
-  </script>
-
-  <!-- Basic styling -->
+  <!-- PWA manifest & service‑worker refs unchanged -->
+  <link rel="manifest" href="manifest.json" />
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 20px; }
-    .container { max-width: 800px; margin: auto; background: #fff; padding: 20px;
-                 border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
-    h1 { text-align: center; margin-bottom: 20px; }
-    button { padding: 10px 16px; border: none; border-radius: 6px; cursor: pointer; }
-    #google-btn { background: #4285f4; color: #fff; width: 100%; }
-    #expense-form input, #expense-form select { width: 100%; padding: 8px; margin: 8px 0; border-radius: 6px; border: 1px solid #ccc; }
-    #expense-form button { background: #28a745; color: #fff; width: 100%; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { padding: 8px; border-bottom: 1px solid #ddd; }
-    th { background: #d4edda; }
-    .total { margin-top: 10px; font-weight: bold; }
+    body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;margin:0;padding:20px;}
+    .container{max-width:850px;margin:auto;background:#fff;padding:20px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+    h1{text-align:center;margin:0 0 20px}
+    button{cursor:pointer;border:none;border-radius:6px;padding:10px 16px}
+    #google-btn{background:#4285f4;color:#fff;width:100%}
+    #logout-btn{background:#dc3545;color:#fff;margin-left:auto}
+    table{width:100%;border-collapse:collapse;margin-top:20px}
+    th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
+    th{background:#d4edda}
+    .total{margin-top:10px;font-weight:bold}
+    .user-info{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+    .user-info img{width:40px;height:40px;border-radius:50%}
   </style>
 </head>
 <body>
   <div class="container">
     <h1>ROE Solution Expense Tracker</h1>
 
-    <!-- Sign-in section -->
+    <!-- SIGN‑IN SECTION -->
     <div id="auth-section">
       <button id="google-btn">Sign in with Google</button>
     </div>
 
-    <!-- Main app -->
+    <!-- MAIN APP SECTION -->
     <div id="app-section" style="display:none">
-      <p>Logged in as: <strong id="user-email"></strong></p>
+      <!-- user bar -->
+      <div class="user-info">
+        <img id="user-photo" src="">
+        <div>
+          <div id="user-name" style="font-weight:bold"></div>
+          <div id="user-email" style="font-size:0.9em;color:#555"></div>
+        </div>
+        <button id="logout-btn">Logout</button>
+      </div>
 
+      <!-- Form -->
       <form id="expense-form">
         <input id="expense-name" placeholder="Expense Name" required />
         <input id="expense-amount" type="number" placeholder="Amount" required />
         <select id="expense-category" required>
-          <option value="" disabled selected>Select Category</option>
+          <option value="" disabled selected>Category</option>
           <option>Food</option><option>Transport</option><option>Entertainment</option>
           <option>Fuel</option><option>Salaries</option><option>Printing</option>
           <option>Rider</option><option>Sacco</option><option>Insurance</option>
           <option>Garage</option><option>Loan</option><option>Other</option>
         </select>
         <input id="expense-date" type="date" required />
-        <button type="submit">Add Expense</button>
+        <button type="submit" style="background:#28a745;color:#fff;width:100%">Add Expense</button>
       </form>
 
+      <!-- Table -->
       <table>
         <thead><tr><th>#</th><th>Name</th><th>Amount</th><th>Category</th><th>Date</th><th>Action</th></tr></thead>
         <tbody id="expense-list"></tbody>
@@ -167,9 +67,104 @@ const analytics = getAnalytics(app);
     </div>
   </div>
 
-  <!-- (Optional) register service-worker for PWA & notifications -->
-  <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+  <!-- Firebase v9 (modular) -->
+  <script type="module">
+    /* Import SDKs */
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    /* Config */
+    const firebaseConfig = {
+      apiKey: "AIzaSyDZV79Oqv0vO8ssquSr_le1w_Za0vJT6JE",
+      authDomain: "roe-expense.firebaseapp.com",
+      projectId: "roe-expense",
+      storageBucket: "roe-expense.appspot.com",
+      messagingSenderId: "1009693087819",
+      appId: "1:1009693087819:web:c4e3a256c7ead97a6e15ce",
+      measurementId: "G-6YFC12KCFJ"
+    };
+
+    /* Init */
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    /* DOM refs */
+    const signBtn   = document.getElementById("google-btn");
+    const logoutBtn = document.getElementById("logout-btn");
+    const authSec   = document.getElementById("auth-section");
+    const appSec    = document.getElementById("app-section");
+
+    /* Sign-in */
+    signBtn.addEventListener("click", () => signInWithPopup(auth, provider).catch(e=>alert(e.message)));
+
+    /* Logout */
+    logoutBtn.addEventListener("click", () => signOut(auth));
+
+    /* On auth change */
+    onAuthStateChanged(auth, async user => {
+      if (!user) {
+        appSec.style.display = "none";
+        authSec.style.display = "block";
+        return;
+      }
+      // show user info
+      document.getElementById("user-name").textContent  = user.displayName || "";
+      document.getElementById("user-email").textContent = user.email;
+      document.getElementById("user-photo").src         = user.photoURL || "https://ui-avatars.com/api/?name="+user.displayName;
+      authSec.style.display = "none";
+      appSec.style.display  = "block";
+
+      // Load data & set form
+      await loadExpenses(user.uid);
+      document.getElementById("expense-form").onsubmit = e => { e.preventDefault(); addExpense(user.uid); };
+    });
+
+    /* Load expenses */
+    async function loadExpenses(uid){
+      const list = document.getElementById("expense-list");
+      list.innerHTML = "";
+      const q = query(collection(db,`users/${uid}/expenses`),orderBy("date","desc"));
+      const snap = await getDocs(q);
+      let total=0, idx=1;
+      snap.forEach(d=>{
+        const e=d.data(); total+=Number(e.amount);
+        list.insertAdjacentHTML("beforeend",`
+          <tr>
+            <td>${idx++}</td><td>${e.name}</td><td>KSH ${Number(e.amount).toFixed(2)}</td>
+            <td>${e.category}</td><td>${formatDate(e.date)}</td>
+            <td><button style="background:#e74c3c;color:#fff" onclick="deleteExpense('${uid}','${d.id}')">Delete</button></td>
+          </tr>
+        `);
+      });
+      document.getElementById("total-amount").textContent = total.toFixed(2);
+    }
+
+    /* Add expense */
+    async function addExpense(uid){
+      const name=document.getElementById("expense-name").value.trim();
+      const amt =parseFloat(document.getElementById("expense-amount").value);
+      const cat =document.getElementById("expense-category").value;
+      const date=document.getElementById("expense-date").value;
+      if(!name||!amt||!cat||!date) return alert("Fill all fields");
+      await addDoc(collection(db,`users/${uid}/expenses`),{name,amount:amt,category:cat,date});
+      document.getElementById("expense-form").reset();
+      loadExpenses(uid);
+    }
+
+    /* Delete */
+    window.deleteExpense = async (uid,id)=>{
+      if(!confirm("Delete?"))return;
+      await deleteDoc(doc(db,`users/${uid}/expenses/${id}`));
+      loadExpenses(uid);
+    };
+
+    const formatDate = iso => new Date(iso).toLocaleDateString("en-GB");
   </script>
+
+  <!-- PWA service worker (optional) -->
+  <script>if('serviceWorker'in navigator){navigator.serviceWorker.register('sw.js');}</script>
 </body>
 </html>
