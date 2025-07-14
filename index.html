@@ -57,7 +57,6 @@ const analytics = getAnalytics(app);
         document.getElementById("app-section").style.display  = "block";
         document.getElementById("user-email").textContent = user.email;
         await loadExpenses(user.uid);
-
         /* Handle form submit */
         document.getElementById("expense-form").addEventListener("submit", e => {
           e.preventDefault();
