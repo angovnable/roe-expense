@@ -1,146 +1,164 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ROE Solution Expense Tracker</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#28a745">
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<style>
-:root{--bg:#e8f5e9;--primary:#28a745;--primary-dark:#218838;--header:#000}
-*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif}
-body{background:var(--bg);padding:20px;min-height:100vh}
-.container{max-width:900px;margin:auto;background:#fff;padding:20px;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
-h1{background:var(--header);color:#fff;text-align:center;padding:15px;border-radius:8px;margin-bottom:20px;font-family:'Courier New',Courier,monospace}
-input,select,button{padding:10px;margin:6px 0;border-radius:8px;border:1px solid #ccc}
-button{background:var(--primary);color:#fff;border:none;cursor:pointer}
-button:hover{background:var(--primary-dark)}
-table{width:100%;border-collapse:collapse;margin-top:15px}
-th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
-th{background:#d4edda}
-.filter,.budget-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:15px}
-.alert{padding:8px;border-radius:6px;margin-top:10px;text-align:center;font-weight:bold}
-.alert.green{background:#d4edda;color:#155724}
-.alert.orange{background:#fff3cd;color:#856404}
-.alert.red{background:#f8d7da;color:#721c24}
-.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:25px}
-canvas{background:#fafafa;border-radius:8px;padding:6px}
-.chart-controls{text-align:center;margin-top:4px}
-.hidden{display:none}
-@media(max-width:600px){table,th,td{font-size:.85rem}}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ROE Solution Expense Tracker</title>
+
+  <!-- (Optional) PWA bits -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#28a745" />
+
+  <!-- Firebase v9 modular SDKs -->
+  <script type="module">
+    /* ---------- Import SDKs ---------- */
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    /* ---------- Your Firebase config ---------- */
+    const firebaseConfig = {
+      apiKey: "AIzaSyDZV79Oqv0vO8ssquSr_le1w_Za0vJT6JE",
+      authDomain: "roe-expense.firebaseapp.com",
+      projectId: "roe-expense",
+      storageBucket: "roe-expense.appspot.com",      // ← fixed
+      messagingSenderId: "1009693087819",
+      appId: "1:1009693087819:web:c4e3a256c7ead97a6e15ce",
+      measurementId: "G-6YFC12KCFJ"
+    };
+
+    /* ---------- Init ---------- */
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    /* ---------- Sign-in button ---------- */
+    document.addEventListener("DOMContentLoaded", () => {
+      const signBtn = document.getElementById("google-btn");
+      signBtn.addEventListener("click", () => signInWithPopup(auth, provider).catch(err => alert(err.message)));
+
+      /* ---------- Auth listener ---------- */
+      onAuthStateChanged(auth, async user => {
+        if (!user) return;
+        document.getElementById("auth-section").style.display = "none";
+        document.getElementById("app-section").style.display  = "block";
+        document.getElementById("user-email").textContent = user.email;
+        await loadExpenses(user.uid);
+
+        /* Handle form submit */
+        document.getElementById("expense-form").addEventListener("submit", e => {
+          e.preventDefault();
+          addExpense(user.uid);
+        });
+      });
+    });
+
+    /* ---------- Load expenses ---------- */
+    async function loadExpenses(uid) {
+      const list = document.getElementById("expense-list");
+      list.innerHTML = "";
+      const q   = query(collection(db, `users/${uid}/expenses`), orderBy("date", "desc"));
+      const snap = await getDocs(q);
+      let total = 0, idx = 1;
+
+      snap.forEach(d => {
+        const e = d.data();
+        total += Number(e.amount);
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${idx++}</td>
+          <td>${e.name}</td>
+          <td>KSH ${Number(e.amount).toFixed(2)}</td>
+          <td>${e.category}</td>
+          <td>${formatDate(e.date)}</td>
+          <td><button style="background:#e74c3c;color:#fff" onclick="deleteExpense('${uid}','${d.id}')">Delete</button></td>
+        `;
+        list.appendChild(row);
+      });
+      document.getElementById("total-amount").textContent = total.toFixed(2);
+    }
+
+    /* ---------- Add expense ---------- */
+    async function addExpense(uid) {
+      const name = document.getElementById("expense-name").value.trim();
+      const amount = parseFloat(document.getElementById("expense-amount").value);
+      const category = document.getElementById("expense-category").value;
+      const date = document.getElementById("expense-date").value;
+      if (!name || !amount || !category || !date) return alert("Fill all fields");
+
+      await addDoc(collection(db, `users/${uid}/expenses`), { name, amount, category, date });
+      await loadExpenses(uid);
+      document.getElementById("expense-form").reset();
+    }
+
+    /* ---------- Delete ---------- */
+    window.deleteExpense = async (uid, id) => {
+      if (!confirm("Delete this expense?")) return;
+      await deleteDoc(doc(db, `users/${uid}/expenses/${id}`));
+      await loadExpenses(uid);
+    };
+
+    /* ---------- Util ---------- */
+    function formatDate(iso) {
+      return new Date(iso).toLocaleDateString("en-GB"); // DD/MM/YYYY
+    }
+  </script>
+
+  <!-- Basic styling -->
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 20px; }
+    .container { max-width: 800px; margin: auto; background: #fff; padding: 20px;
+                 border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+    h1 { text-align: center; margin-bottom: 20px; }
+    button { padding: 10px 16px; border: none; border-radius: 6px; cursor: pointer; }
+    #google-btn { background: #4285f4; color: #fff; width: 100%; }
+    #expense-form input, #expense-form select { width: 100%; padding: 8px; margin: 8px 0; border-radius: 6px; border: 1px solid #ccc; }
+    #expense-form button { background: #28a745; color: #fff; width: 100%; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 8px; border-bottom: 1px solid #ddd; }
+    th { background: #d4edda; }
+    .total { margin-top: 10px; font-weight: bold; }
+  </style>
 </head>
 <body>
-<div class="container">
-  <h1>ROE SOLUTION EXPENSE TRACKER</h1>
-  <div id="auth-screen">
-      <p style="text-align:center;font-weight:bold">Sign in to continue</p>
-      <div style="display:flex;justify-content:center;margin-top:15px">
-        <button id="google-btn" style="background:#4285f4">Sign in with Google</button>
-      </div>
-  </div>
-  <div id="budget-banner" class="alert green hidden">
-    Monthly Budget: KSH <span id="budget-value">50,000</span>
-    <button onclick="editBudget()" style="margin-left:auto;background:#007bff">Edit Budget</button>
-  </div>
-  <form id="expense-form" class="hidden">
-    <input id="expense-name" placeholder="Expense Name" required>
-    <input id="expense-amount" type="number" placeholder="Amount" required>
-    <select id="expense-category" required>
-      <option value="" disabled selected>Select Category</option>
-      <option>Food</option><option>Transport</option><option>Entertainment</option>
-      <option>Fuel</option><option>Salaries</option><option>Printing</option>
-      <option>Rider</option><option>Sacco</option><option>Insurance</option>
-      <option>Garage</option><option>Loan</option><option>Other</option>
-    </select>
-    <input id="expense-date" type="date" required>
-    <button type="submit">Add Expense</button>
-  </form>
-  <div class="filter hidden" id="filter-row">
-      <label for="filter-category">Filter:</label>
-      <select id="filter-category">
-        <option>All</option><option>Food</option><option>Transport</option><option>Entertainment</option>
-        <option>Fuel</option><option>Salaries</option><option>Printing</option>
-        <option>Rider</option><option>Sacco</option><option>Insurance</option>
-        <option>Garage</option><option>Loan</option><option>Other</option>
-      </select>
-      <button onclick="exportCSV()">Export CSV</button>
-  </div>
-  <table id="expense-table" class="hidden">
-    <thead><tr><th>No</th><th>Name</th><th>Amount</th><th>Category</th><th>Date</th><th>Action</th></tr></thead>
-    <tbody id="expense-list"></tbody>
-  </table>
-  <div class="total-amount hidden">Total: KSH <span id="total-amount">0</span></div>
-  <div class="charts hidden">
-    <div>
-      <canvas id="dailyChart"></canvas>
-      <div class="chart-controls"><button onclick="downloadChart(dailyChart,'daily')">Download PNG</button></div>
+  <div class="container">
+    <h1>ROE Solution Expense Tracker</h1>
+
+    <!-- Sign-in section -->
+    <div id="auth-section">
+      <button id="google-btn">Sign in with Google</button>
     </div>
-    <div>
-      <canvas id="weeklyChart"></canvas>
-      <div class="chart-controls"><button onclick="downloadChart(weeklyChart,'weekly')">Download PNG</button></div>
-    </div>
-    <div>
-      <canvas id="categoryChart"></canvas>
-      <div class="chart-controls"><button onclick="downloadChart(categoryChart,'category')">Download PNG</button></div>
+
+    <!-- Main app -->
+    <div id="app-section" style="display:none">
+      <p>Logged in as: <strong id="user-email"></strong></p>
+
+      <form id="expense-form">
+        <input id="expense-name" placeholder="Expense Name" required />
+        <input id="expense-amount" type="number" placeholder="Amount" required />
+        <select id="expense-category" required>
+          <option value="" disabled selected>Select Category</option>
+          <option>Food</option><option>Transport</option><option>Entertainment</option>
+          <option>Fuel</option><option>Salaries</option><option>Printing</option>
+          <option>Rider</option><option>Sacco</option><option>Insurance</option>
+          <option>Garage</option><option>Loan</option><option>Other</option>
+        </select>
+        <input id="expense-date" type="date" required />
+        <button type="submit">Add Expense</button>
+      </form>
+
+      <table>
+        <thead><tr><th>#</th><th>Name</th><th>Amount</th><th>Category</th><th>Date</th><th>Action</th></tr></thead>
+        <tbody id="expense-list"></tbody>
+      </table>
+      <div class="total">Total: KSH <span id="total-amount">0</span></div>
     </div>
   </div>
-</div>
-<script>
-// Firebase config (replace with yours)
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyCxUCAosjhaucYeve291Sj27C610I_hSM4",
-  authDomain: "roe-solutions.firebaseapp.com",
-  projectId: "roe-solutions",
-  storageBucket: "roe-solutions.firebasestorage.app",
-  messagingSenderId: "987124966513",
-  appId: "1:987124966513:web:efdfc1b52f86d446cf67d0",
-  measurementId: "G-W4LZQD3DRN"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const db=firebase.firestore();const auth=firebase.auth();
-let expenses=[],uid=null,monthlyBudget=Number(localStorage.getItem('monthlyBudget')||50000);
-document.getElementById('budget-value').textContent=monthlyBudget.toLocaleString();
-document.getElementById('google-btn').onclick=()=>auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>alert(e.message));
-auth.onAuthStateChanged(user=>{if(user){uid=user.uid;document.getElementById('auth-screen').remove();toggleUI(true);loadExpenses();}});
-
-function col(){return db.collection('users').doc(uid).collection('expenses');}
-function loadExpenses(){col().orderBy('date').get().then(snap=>{expenses=snap.docs.map(d=>({...d.data(),docId:d.id}));renderAll();});}
-function editBudget(){const v=prompt("Budget (KSH):",monthlyBudget);if(!v)return;monthlyBudget=Number(v);localStorage.setItem('monthlyBudget',monthlyBudget);document.getElementById('budget-value').textContent=monthlyBudget.toLocaleString();checkBudgetAlert();}
-document.getElementById('expense-form').addEventListener('submit',e=>{e.preventDefault();const n=$('expense-name').value.trim(),a=parseFloat($('expense-amount').value),c=$('expense-category').value,d=$('expense-date').value;if(!n||a<=0||!c||!d)return alert("Fill all fields");const exp={name:n,amount:a,category:c,date:d};col().add(exp).then(doc=>{expenses.push({...exp,docId:doc.id});e.target.reset();renderAll();});});
-function deleteExpense(i){if(!confirm('Delete?'))return;const exp=expenses[i];col().doc(exp.docId).delete().then(()=>{expenses.splice(i,1);renderAll();});}
-$('filter-category').onchange=renderExpenses;
-function renderExpenses(){const t=$('expense-list');t.innerHTML='';const f=$('filter-category').value||'All';const rows=f==='All'?expenses:expenses.filter(e=>e.category===f);rows.forEach((e,i)=>{t.insertAdjacentHTML('beforeend',`<tr><td>${i+1}</td><td>${e.name}</td><td>${e.amount.toFixed(2)}</td><td>${e.category}</td><td>${fmt(e.date)}</td><td><button style="background:#dc3545;color:#fff" onclick="deleteExpense(${i})">Del</button></td></tr>`);});}
-function updateTotal(){const tot=expenses.reduce((s,e)=>s+e.amount,0);$('total-amount').textContent=tot.toFixed(2);}
-function checkBudgetAlert(){const now=new Date();const spent=expenses.filter(e=>{const d=new Date(e.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).reduce((s,e)=>s+e.amount,0);const ban=$('budget-banner');ban.classList.remove('green','orange','red');const pct=spent/monthlyBudget;if(pct>=1){ban.classList.add('red');notify("Budget exceeded!");}else if(pct>=0.8){ban.classList.add('orange');notify("80% of budget reached");}else ban.classList.add('green');}
-function notify(msg){if(Notification.permission==='granted'){navigator.serviceWorker.getRegistration().then(r=>r&&r.showNotification('ROE Expense',{body:msg,icon:'icon-512.png'}));}else if(Notification.permission!=='denied'){Notification.requestPermission().then(p=>p==='granted'&&notify(msg));}}
-function exportCSV(){const f=$('filter-category').value||'All';const rows=f==='All'?expenses:expenses.filter(e=>e.category===f);if(!rows.length)return alert("No data");let csv='No,Name,Amount,Category,Date\n';rows.forEach((e,i)=>csv+=`${i+1},"${e.name}",${e.amount},"${e.category}","${fmt(e.date)}"\n`);const blob=new Blob([csv],{type:'text/csv'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='expenses.csv';link.click();}
-let dailyChart,weeklyChart,categoryChart;
-function updateCharts(){[dailyChart,weeklyChart,categoryChart].forEach(c=>c&&c.destroy());const dm={},wm={},cm={};expenses.forEach(e=>{const d=new Date(e.date);const day=d.toLocaleDateString('en-GB');const wk=`${d.getFullYear()}-W${getWk(d)}`;dm[day]=(dm[day]||0)+e.amount;wm[wk]=(wm[wk]||0)+e.amount;cm[e.category]=(cm[e.category]||0)+e.amount;});dailyChart=new Chart($('dailyChart'),{type:'line',data:{labels:Object.keys(dm),datasets:[{data:Object.values(dm)}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});weeklyChart=new Chart($('weeklyChart'),{type:'bar',data:{labels:Object.keys(wm),datasets:[{data:Object.values(wm)}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});categoryChart=new Chart($('categoryChart'),{type:'pie',data:{labels:Object.keys(cm),datasets:[{data:Object.values(cm)}]},options:{plugins:{legend:{position:'bottom'}}}});}
-function fmt(iso){return new Date(iso).toLocaleDateString('en-GB');}
-function getWk(d){d=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));d.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7));const yStart=new Date(Date.UTC(d.getUTCFullYear(),0,1));return Math.ceil((((d-yStart)/86400000)+1)/7);}
-function downloadChart(c,n){const link=document.createElement('a');link.href=c.toBase64Image();link.download=n+'.png';link.click();}
-function $(id){return document.getElementById(id);}
-function toggleUI(s){['budget-banner','expense-form','filter-row','expense-table','total-amount','charts'].forEach(id=>$(id).classList.toggle('hidden',!s));}
-function renderAll(){renderExpenses();updateTotal();updateCharts();checkBudgetAlert();}
-if('serviceWorker'in navigator){navigator.serviceWorker.register('sw.js');}
-</script>
+  <!-- (Optional) register service-worker for PWA & notifications -->
+  <script>
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+  </script>
 </body>
 </html>
