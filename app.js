@@ -11,12 +11,13 @@ import { getFirestore, collection, addDoc, getDocs, deleteDoc,
 
 /* 2️⃣  YOUR CONFIG (copy from Firebase Console > Project Settings > Web app) */
 const firebaseConfig = {
-  apiKey: "PASTE_YOURS",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abc123def456"
+  aapiKey: "AIzaSyDZV79Oqv0vO8ssquSr_le1w_Za0vJT6JE",
+  authDomain: "roe-expense.firebaseapp.com",
+  projectId: "roe-expense",
+  storageBucket: "roe-expense.firebasestorage.app",
+  messagingSenderId: "1009693087819",
+  appId: "1:1009693087819:web:c4e3a256c7ead97a6e15ce",
+  measurementId: "G-6YFC12KCFJ"
 };
 
 /* 3️⃣  INITIALIZE */
